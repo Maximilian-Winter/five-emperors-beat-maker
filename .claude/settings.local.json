@@ -30,7 +30,8 @@
       "Bash(python -c \"import beatmaker; print\\(f''Version: {beatmaker.__version__}''\\); print\\(f''Public API: {len\\(beatmaker.__all__\\)} exports''\\)\")",
       "Bash(python -c \"from beatmaker import *; print\\(''Top-level OK''\\)\")",
       "Bash(python -c \"from beatmaker.synthesis import DrumSynth; from beatmaker.effects import Gain, SidechainCompressor; from beatmaker.graph import SignalGraph; from beatmaker.music import Scale; print\\(''Subpackages OK''\\)\")",
-      "Bash(python -c \"from beatmaker.synth import DrumSynth; from beatmaker.sidechain import SidechainCompressor; print\\(''Backward compat OK''\\)\")"
+      "Bash(python -c \"from beatmaker.synth import DrumSynth; from beatmaker.sidechain import SidechainCompressor; print\\(''Backward compat OK''\\)\")",
+      "Bash(pip install:*)"
     ]
   }
 }
