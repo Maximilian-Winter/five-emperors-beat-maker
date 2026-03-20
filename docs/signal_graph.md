@@ -1,10 +1,21 @@
 # Signal Graph API Reference
 
-Complete API reference for the `beatmaker.graph` module.
+Complete API reference for the `beatmaker.graph` subpackage.
+
+**Subpackage modules:**
+- `beatmaker/graph/core.py` -- `SignalGraph`, `SignalNode`, `Port`, graph execution engine
+- `beatmaker/graph/sources.py` -- `AudioInput`, `OscillatorSource`, `SilenceSource`
+- `beatmaker/graph/processors.py` -- `GainNode`, `FilterNode`, `CompressorNode`
+- `beatmaker/graph/combiners.py` -- `MixerNode`, `CrossfadeNode`
+- `beatmaker/graph/analysis.py` -- `LevelMeter`, `SpectrumAnalyzer`
+- `beatmaker/graph/channels.py` -- `SplitterNode`, `MergeNode`, `PanNode`
+- `beatmaker/graph/bridge.py` -- `graph_to_audio`, `audio_to_graph`
 
 The signal graph system provides a **declarative** way to describe audio signal flow. Instead of manually processing buffers, you declare **nodes** (sources, processors, combiners, analyzers, splitters) and **connect** them with the `>>` operator. The graph is then lazily rendered to produce audio.
 
 All node classes inherit from `SignalNode` and implement `.process_graph(inputs, sample_rate, num_samples) -> outputs`.
+
+> **Note:** The old import path `from beatmaker.graph import ...` continues to work as before -- the `graph` module was restructured into a subpackage but maintains the same public API. See the [Migration Guide](migration_v0.3_to_v0.4.md).
 
 ---
 

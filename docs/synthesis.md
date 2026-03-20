@@ -1,10 +1,19 @@
 # Synthesis API Reference
 
-Complete API documentation for the synthesis modules: `beatmaker.synth` and `beatmaker.synths`.
+Complete API documentation for the `beatmaker.synthesis` subpackage.
 
-**Source files:**
-- `beatmaker/synth.py` -- Core waveform generators, envelopes, oscillator, drum synth, bass synth, and utility functions
-- `beatmaker/synths.py` -- Extended synthesizers: LFO, Filter, PadSynth, LeadSynth, PluckSynth, FXSynth, and convenience factories
+**Subpackage modules:**
+- `beatmaker/synthesis/waveforms.py` -- Waveform enum and generator functions (sine, square, sawtooth, triangle, noise)
+- `beatmaker/synthesis/oscillator.py` -- `Oscillator` and `ADSREnvelope`
+- `beatmaker/synthesis/drums.py` -- `DrumSynth`
+- `beatmaker/synthesis/bass.py` -- `BassSynth`
+- `beatmaker/synthesis/modulation.py` -- `LFO` and `Filter`
+- `beatmaker/synthesis/pads.py` -- `PadSynth` and `create_pad`
+- `beatmaker/synthesis/leads.py` -- `LeadSynth` and `create_lead`
+- `beatmaker/synthesis/plucks.py` -- `PluckSynth` and `create_pluck`
+- `beatmaker/synthesis/fx.py` -- `FXSynth`
+
+> **Note:** The old import paths `from beatmaker.synth import ...` and `from beatmaker.synths import ...` still work via backward-compatibility stubs but are deprecated. Use `from beatmaker.synthesis import ...` for new code. See the [Migration Guide](migration_v0.3_to_v0.4.md).
 
 ---
 
@@ -862,7 +871,7 @@ hit = FXSynth.impact()
 
 ## Convenience Factory Functions
 
-High-level helper functions defined in `beatmaker/synths.py` that accept note names (e.g. `"A4"`) instead of raw frequencies.
+High-level helper functions (in `beatmaker/synthesis/pads.py`, `leads.py`, `plucks.py`) that accept note names (e.g. `"A4"`) instead of raw frequencies.
 
 ### `create_pad(note: str, duration: float, pad_type: str = 'warm') -> Sample`
 

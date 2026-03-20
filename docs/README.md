@@ -2,7 +2,7 @@
 
 **The Numinous Treasure Five Emperors Beat Maker** — a Python library for creating beats and songs with a fluent builder pattern.
 
-> *Version 0.3.0*
+> *Version 0.4.0*
 
 ---
 
@@ -30,16 +30,22 @@ song.export("my_beat.wav")
 
 The library is organized into the following modules, each documented in detail:
 
-| Document | Modules | Description |
-|----------|---------|-------------|
+| Document | Modules / Subpackages | Description |
+|----------|----------------------|-------------|
 | [Core & I/O](core_and_io.md) | `core`, `io` | Foundational types (`AudioData`, `Sample`, `Track`, `TrackType`, `TimeSignature`, `NoteValue`), audio loading/saving, and `SampleLibrary` with aliases & configuration |
+| [Music Theory](music.md) | `music` | Shared music theory utilities — `note_name_to_midi`, `midi_to_note_name`, `midi_to_freq`, `freq_to_midi`, `note_to_freq`, `Scale`, `ChordShape`, `NOTE_FREQS` |
 | [Builder](builder.md) | `builder` | Fluent builder pattern — `create_song()`, `SongBuilder`, `DrumTrackBuilder`, `BassTrackBuilder`, `MelodyTrackBuilder`, `HarmonyTrackBuilder`, `SectionBuilder`, and `Song` |
-| [Synthesis](synthesis.md) | `synth`, `synths` | Waveform generators, `Oscillator`, `ADSREnvelope`, `DrumSynth`, `BassSynth`, `PadSynth`, `LeadSynth`, `PluckSynth`, `FXSynth`, `LFO`, `Filter` |
-| [Effects](effects.md) | `effects`, `sidechain` | Audio effects (`Gain`, `Limiter`, `Delay`, `Reverb`, `Compressor`, `Chorus`, `BitCrusher`, etc.), `EffectChain`, sidechain compression & `PumpingBass` |
+| [Synthesis](synthesis.md) | `synthesis/` subpackage (`waveforms`, `oscillator`, `drums`, `bass`, `modulation`, `pads`, `leads`, `plucks`, `fx`) | Waveform generators, `Oscillator`, `ADSREnvelope`, `DrumSynth`, `BassSynth`, `PadSynth`, `LeadSynth`, `PluckSynth`, `FXSynth`, `LFO`, `Filter` |
+| [Effects](effects.md) | `effects/` subpackage (`base`, `dynamics`, `time_based`, `filters`, `sidechain`) | Audio effects (`Gain`, `Limiter`, `Delay`, `Reverb`, `Compressor`, `Chorus`, `BitCrusher`, etc.), `EffectChain`, sidechain compression & `PumpingBass` |
+| [Signal Graph](signal_graph.md) | `graph/` subpackage (`core`, `sources`, `processors`, `combiners`, `analysis`, `channels`, `bridge`) | Declarative signal flow graph — `SignalGraph`, `AudioInput`, `GainNode`, `FilterNode`, mixers, analyzers, channel ops |
 | [Sequencer & Arpeggiator](sequencer_and_arpeggiator.md) | `sequencer`, `arpeggiator` | `StepSequencer`, `Pattern`, `ClassicPatterns`, `EuclideanPattern`, `PolyrhythmGenerator`, `Arpeggiator`, `Scale`, `ChordShape` |
 | [Melody, Harmony & Automation](melody_harmony_automation.md) | `melody`, `harmony`, `automation` | `Note`, `Phrase`, `Melody`, `Key`, `ChordProgression` (with Roman numerals & presets), `AutomationCurve`, `AutomatedGain`, `AutomatedFilter` |
 | [Arrangement & Expression](arrangement_and_expression.md) | `arrangement`, `expression` | `Section`, `Arrangement`, `Transition`, `Vibrato`, `PitchBend`, `Portamento`, `Humanizer`, `GrooveTemplate`, `VelocityCurve` |
 | [MIDI & Utilities](midi_and_utils.md) | `midi`, `utils` | MIDI read/write (`MIDIFile`, `MIDIReader`, `MIDIWriter`), MIDI-beatmaker conversion, BPM detection, onset detection, time stretch, pitch shift, and audio utilities |
+| [Quickstart Guide](quickstart.md) | — | Getting started, installation, hello-world beat, common patterns |
+| [Migration Guide (v0.3 → v0.4)](migration_v0.3_to_v0.4.md) | — | Upgrading from v0.3 to v0.4: new subpackage structure, SPC700 separation, deprecation timeline |
+
+> **SPC700 support** has been extracted to the separate [`beatmaker-spc700`](https://pypi.org/project/beatmaker-spc700/) package. Install it with `pip install beatmaker-spc700` or `pip install beatmaker[spc700]`.
 
 ---
 
@@ -62,10 +68,15 @@ The library is organized into the following modules, each documented in detail:
      └────────┬──┘  └─────┬─────┘  └──┬────────┘
               │            │            │
               │     ┌──────▼──────┐     │
-              │     │   Synths    │     │
+              │     │ synthesis/  │     │
               ├────►│ DrumSynth   │◄────┤  Sound generation
               │     │ BassSynth   │     │
               │     │ PadSynth    │     │
+              │     └──────┬──────┘     │
+              │            │            │
+              │     ┌──────▼──────┐     │
+              │     │   music     │     │  Shared theory
+              │     │ Scale,Chord │     │
               │     └─────────────┘     │
               │                         │
      ┌────────▼─────────────────────────▼──────┐
@@ -76,8 +87,8 @@ The library is organized into the following modules, each documented in detail:
           ┌────────────┼────────────┐
           │            │            │
    ┌──────▼─────┐ ┌───▼────┐ ┌───▼──────┐
-   │  Effects   │ │Arrange-│ │Expression│  Post-processing
-   │  Chain     │ │ment    │ │Humanizer │
+   │ effects/   │ │Arrange-│ │Expression│  Post-processing
+   │ EffectChain│ │ment    │ │Humanizer │
    └──────┬─────┘ └───┬────┘ └───┬──────┘
           │            │          │
           └────────────┼──────────┘
@@ -205,11 +216,13 @@ The complete public API, importable from `beatmaker`:
 
 **Building:** `Song`, `SongBuilder`, `TrackBuilder`, `DrumTrackBuilder`, `BassTrackBuilder`, `MelodyTrackBuilder`, `HarmonyTrackBuilder`, `SectionBuilder`, `create_song`
 
-**Synthesis:** `Waveform`, `Oscillator`, `ADSREnvelope`, `sine_wave`, `square_wave`, `sawtooth_wave`, `triangle_wave`, `white_noise`, `pink_noise`, `DrumSynth`, `BassSynth`, `midi_to_freq`, `freq_to_midi`, `note_to_freq`, `LFO`, `Filter`, `PadSynth`, `LeadSynth`, `PluckSynth`, `FXSynth`, `create_pad`, `create_lead`, `create_pluck`
+**Music Theory** *(new in 0.4.0)*: `note_name_to_midi`, `midi_to_note_name`, `midi_to_freq`, `freq_to_midi`, `note_to_freq`, `Scale`, `ChordShape`, `NOTE_FREQS`
 
-**Effects:** `Gain`, `Limiter`, `SoftClipper`, `Delay`, `Reverb`, `LowPassFilter`, `HighPassFilter`, `Compressor`, `BitCrusher`, `Chorus`, `EffectChain`
+**Synthesis** *(now `beatmaker.synthesis` subpackage)*: `Waveform`, `Oscillator`, `ADSREnvelope`, `sine_wave`, `square_wave`, `sawtooth_wave`, `triangle_wave`, `white_noise`, `pink_noise`, `DrumSynth`, `BassSynth`, `LFO`, `Filter`, `PadSynth`, `LeadSynth`, `PluckSynth`, `FXSynth`, `create_pad`, `create_lead`, `create_pluck`
 
-**Sidechain:** `SidechainCompressor`, `SidechainEnvelope`, `PumpingBass`, `SidechainBuilder`, `SidechainPresets`, `create_sidechain`
+**Effects** *(now `beatmaker.effects` subpackage)*: `Gain`, `Limiter`, `SoftClipper`, `Delay`, `Reverb`, `LowPassFilter`, `HighPassFilter`, `Compressor`, `BitCrusher`, `Chorus`, `EffectChain`
+
+**Sidechain** *(now part of `beatmaker.effects` subpackage)*: `SidechainCompressor`, `SidechainEnvelope`, `PumpingBass`, `SidechainBuilder`, `SidechainPresets`, `create_sidechain`
 
 **Sequencer:** `Step`, `Pattern`, `StepSequencer`, `ClassicPatterns`, `EuclideanPattern`, `PolyrhythmGenerator`, `StepValue`
 

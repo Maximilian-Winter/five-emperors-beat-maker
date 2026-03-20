@@ -16,8 +16,8 @@ Three integration surfaces are provided:
     SPC700Echo   — The SPC700 echo/FIR unit as a standalone AudioEffect
 
 Usage:
-    from beatmaker.spc import SPC700Engine, SPC700Sound, SPC700Echo
-    from beatmaker.spc700 import EchoConfig, ADSR
+    from beatmaker_spc700 import SPC700Engine, SPC700Sound, SPC700Echo
+    from beatmaker_spc700 import EchoConfig, ADSR
 
     # Set up the engine
     engine = SPC700Engine(echo=EchoConfig.reverb())
@@ -39,9 +39,9 @@ from typing import Optional, Union, Callable
 
 import numpy as np
 
-from .core import AudioData, AudioEffect, Sample as BeatmakerSample
+from beatmaker.core import AudioData, AudioEffect, Sample as BeatmakerSample
 
-from .spc700 import (
+from .spc700_synth import (
     # Composition types
     Song as SPCSong,
     Track as SPCTrack,
@@ -50,14 +50,6 @@ from .spc700 import (
     ADSR,
     Gain,
     EchoConfig,
-    # BRR encoding
-    encode_brr,
-    load_and_encode,
-    load_wav,
-    resample as brr_resample,
-    DSP_SAMPLE_RATE,
-    # DSP
-    DSP,
     # Pitch utilities
     midi_to_freq,
     note_to_midi,
@@ -66,6 +58,16 @@ from .spc700 import (
     SAMPLE_RATE as SPC_SAMPLE_RATE,
     RAM_SIZE,
 )
+
+from .spc700_brr import (
+    encode_brr,
+    load_and_encode,
+    load_wav,
+    resample as brr_resample,
+    DSP_SAMPLE_RATE,
+)
+
+from .spc700_dsp import DSP
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -372,8 +374,7 @@ class SPC700Engine:
         - Direct WAV export at native 32kHz
 
     Example:
-        from beatmaker.spc import SPC700Engine, SPC700Sound
-        from beatmaker.spc700 import EchoConfig
+        from beatmaker_spc700 import SPC700Engine, SPC700Sound, EchoConfig
 
         engine = SPC700Engine(echo=EchoConfig.reverb(delay=5, feedback=80))
         engine.sound("kick", SPC700Sound.drum("kick.wav"))
@@ -465,8 +466,8 @@ class SPC700Engine:
         """Render an SPC700 Song to beatmaker AudioData.
 
         Pipeline:
-            1. Compile song → RAM image + register write timeline
-            2. Render through DSP → raw stereo 16-bit PCM at 32kHz
+            1. Compile song -> RAM image + register write timeline
+            2. Render through DSP -> raw stereo 16-bit PCM at 32kHz
             3. Resample to target sample_rate
             4. Wrap in AudioData
 
@@ -488,7 +489,7 @@ class SPC700Engine:
         raw = np.frombuffer(pcm_bytes, dtype=np.int16)
         stereo = raw.reshape(-1, 2)
 
-        # Convert int16 → float [-1, 1]
+        # Convert int16 -> float [-1, 1]
         audio_float = stereo.astype(np.float64) / 32768.0
 
         audio = AudioData(audio_float, SPC_SAMPLE_RATE, 2)

@@ -17,6 +17,10 @@ import numpy as np
 from .core import AudioData, Sample, Track, TrackType
 from .synth import midi_to_freq, note_to_freq, ADSREnvelope
 
+# Music theory types — canonical source is beatmaker.music
+# Re-exported here for backward compatibility
+from .music import ChordShape, Scale, note_name_to_midi  # noqa: F401
+
 
 class ArpDirection(Enum):
     """Arpeggiator direction modes."""
@@ -34,114 +38,6 @@ class ArpMode(Enum):
     OCTAVE = auto()      # Add octave above
     DOUBLE_OCTAVE = auto()  # Add two octaves
     POWER = auto()       # Root + fifth + octave
-
-
-@dataclass
-class ChordShape:
-    """Define a chord by intervals from root."""
-    name: str
-    intervals: List[int]  # Semitones from root
-    
-    # Common chord shapes
-    MAJOR = None  # Will be set after class definition
-    MINOR = None
-    DIM = None
-    AUG = None
-    SUS2 = None
-    SUS4 = None
-    MAJOR7 = None
-    MINOR7 = None
-    DOM7 = None
-    ADD9 = None
-
-
-# Define chord shapes after class
-ChordShape.MAJOR = ChordShape("major", [0, 4, 7])
-ChordShape.MINOR = ChordShape("minor", [0, 3, 7])
-ChordShape.DIM = ChordShape("dim", [0, 3, 6])
-ChordShape.AUG = ChordShape("aug", [0, 4, 8])
-ChordShape.SUS2 = ChordShape("sus2", [0, 2, 7])
-ChordShape.SUS4 = ChordShape("sus4", [0, 5, 7])
-ChordShape.MAJOR7 = ChordShape("maj7", [0, 4, 7, 11])
-ChordShape.MINOR7 = ChordShape("min7", [0, 3, 7, 10])
-ChordShape.DOM7 = ChordShape("dom7", [0, 4, 7, 10])
-ChordShape.ADD9 = ChordShape("add9", [0, 4, 7, 14])
-ChordShape.DIM7 = ChordShape("dim7", [0, 3, 6, 9])
-ChordShape.HALF_DIM7 = ChordShape("half_dim7", [0, 3, 6, 10])
-ChordShape.MAJ9 = ChordShape("maj9", [0, 4, 7, 11, 14])
-ChordShape.MIN9 = ChordShape("min9", [0, 3, 7, 10, 14])
-ChordShape.DOM9 = ChordShape("dom9", [0, 4, 7, 10, 14])
-ChordShape.ADD11 = ChordShape("add11", [0, 4, 7, 17])
-ChordShape.MAJ13 = ChordShape("maj13", [0, 4, 7, 11, 14, 21])
-
-@classmethod
-def custom(cls, name: str, intervals: list) -> 'ChordShape':
-    """Create a custom chord shape from arbitrary semitone intervals."""
-    return cls(name=name, intervals=intervals)
-
-ChordShape.custom = custom
-
-
-@dataclass
-class Scale:
-    """Musical scale definition."""
-    name: str
-    intervals: List[int]  # Semitones from root
-    
-    def get_notes(self, root_midi: int, octaves: int = 1) -> List[int]:
-        """Get MIDI notes for scale starting from root."""
-        notes = []
-        for octave in range(octaves):
-            for interval in self.intervals:
-                notes.append(root_midi + interval + (octave * 12))
-        return notes
-    
-    # Common scales
-    MAJOR = None
-    MINOR = None
-    DORIAN = None
-    PHRYGIAN = None
-    LYDIAN = None
-    MIXOLYDIAN = None
-    LOCRIAN = None
-    MINOR_PENTATONIC = None
-    MAJOR_PENTATONIC = None
-    BLUES = None
-    HARMONIC_MINOR = None
-    MELODIC_MINOR = None
-
-
-# Define scales
-Scale.MAJOR = Scale("major", [0, 2, 4, 5, 7, 9, 11])
-Scale.MINOR = Scale("minor", [0, 2, 3, 5, 7, 8, 10])
-Scale.DORIAN = Scale("dorian", [0, 2, 3, 5, 7, 9, 10])
-Scale.PHRYGIAN = Scale("phrygian", [0, 1, 3, 5, 7, 8, 10])
-Scale.LYDIAN = Scale("lydian", [0, 2, 4, 6, 7, 9, 11])
-Scale.MIXOLYDIAN = Scale("mixolydian", [0, 2, 4, 5, 7, 9, 10])
-Scale.LOCRIAN = Scale("locrian", [0, 1, 3, 5, 6, 8, 10])
-Scale.MINOR_PENTATONIC = Scale("minor_pent", [0, 3, 5, 7, 10])
-Scale.MAJOR_PENTATONIC = Scale("major_pent", [0, 2, 4, 7, 9])
-Scale.BLUES = Scale("blues", [0, 3, 5, 6, 7, 10])
-Scale.HARMONIC_MINOR = Scale("harmonic_minor", [0, 2, 3, 5, 7, 8, 11])
-Scale.MELODIC_MINOR = Scale("melodic_minor", [0, 2, 3, 5, 7, 9, 11])
-
-
-def note_name_to_midi(note: str) -> int:
-    """Convert note name (e.g., 'C4', 'F#3') to MIDI number."""
-    note_map = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
-    
-    name = note[:-1].upper()
-    octave = int(note[-1])
-    
-    base = note_map.get(name[0], 0)
-    
-    if len(name) > 1:
-        if name[1] == '#':
-            base += 1
-        elif name[1] == 'B':
-            base -= 1
-    
-    return base + (octave + 1) * 12
 
 
 @dataclass

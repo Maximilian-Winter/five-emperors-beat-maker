@@ -14,7 +14,7 @@ with a clean, chainable API.
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, List, Union, Callable
+from typing import Optional, List, Union, Callable, TypeVar
 import numpy as np
 from tqdm import tqdm
 
@@ -447,6 +447,9 @@ class SongBuilder:
         return self._song
 
 
+_TB = TypeVar('_TB', bound='TrackBuilder')
+
+
 class TrackBuilder:
     """Base builder for track construction."""
 
@@ -454,48 +457,48 @@ class TrackBuilder:
         self._track = track
         self._song = song
         self._library = library  # Optional[SampleLibrary]
-    
-    def volume(self, level: float) -> 'TrackBuilder':
+
+    def volume(self: _TB, level: float) -> _TB:
         """Set track volume (0.0 - 1.0)."""
         self._track.volume = level
         return self
-    
-    def pan(self, value: float) -> 'TrackBuilder':
+
+    def pan(self: _TB, value: float) -> _TB:
         """Set track pan (-1.0 left to 1.0 right)."""
         self._track.pan = value
         return self
-    
-    def mute(self) -> 'TrackBuilder':
+
+    def mute(self: _TB) -> _TB:
         """Mute the track."""
         self._track.muted = True
         return self
-    
-    def solo(self) -> 'TrackBuilder':
+
+    def solo(self: _TB) -> _TB:
         """Solo the track."""
         self._track.solo = True
         return self
-    
-    def effect(self, effect: AudioEffect) -> 'TrackBuilder':
+
+    def effect(self: _TB, effect: AudioEffect) -> _TB:
         """Add an effect to the track."""
         self._track.add_effect(effect)
         return self
-    
-    def add(self, sample: Sample, beat: float, 
-            velocity: float = 1.0, pan: float = 0.0) -> 'TrackBuilder':
+
+    def add(self: _TB, sample: Sample, beat: float,
+            velocity: float = 1.0, pan: float = 0.0) -> _TB:
         """Add a sample at a specific beat."""
         time = self._song.beat_to_seconds(beat)
         self._track.add(sample, time, velocity, pan)
         return self
-    
-    def add_at_bar(self, sample: Sample, bar: float,
-                   velocity: float = 1.0, pan: float = 0.0) -> 'TrackBuilder':
+
+    def add_at_bar(self: _TB, sample: Sample, bar: float,
+                   velocity: float = 1.0, pan: float = 0.0) -> _TB:
         """Add a sample at a specific bar."""
         time = self._song.bar_to_seconds(bar)
         self._track.add(sample, time, velocity, pan)
         return self
 
-    def sample(self, key: str, beat: float,
-               velocity: float = 1.0, pan: float = 0.0) -> 'TrackBuilder':
+    def sample(self: _TB, key: str, beat: float,
+               velocity: float = 1.0, pan: float = 0.0) -> _TB:
         """
         Place a sample from the attached library at a beat position.
 
@@ -524,27 +527,27 @@ class TrackBuilder:
         s = self._library[key]
         return self.add(s, beat, velocity, pan)
 
-    def humanize(self, timing: float = 0.01, velocity: float = 0.1,
-                 seed: Optional[int] = None) -> 'TrackBuilder':
+    def humanize(self: _TB, timing: float = 0.01, velocity: float = 0.1,
+                 seed: Optional[int] = None) -> _TB:
         """Apply humanization (timing jitter + velocity variation) to all placements."""
         from .expression import Humanizer
         Humanizer(timing_jitter=timing, velocity_variation=velocity,
                   seed=seed).apply_to_track(self._track)
         return self
 
-    def groove(self, template) -> 'TrackBuilder':
+    def groove(self: _TB, template) -> _TB:
         """Apply a groove template to all placements."""
         template.apply_to_track(self._track, self._song.bpm)
         return self
 
-    def automate_volume(self, curve: AutomationCurve) -> 'TrackBuilder':
+    def automate_volume(self: _TB, curve: AutomationCurve) -> _TB:
         """Attach a volume automation curve to this track."""
         if not hasattr(self._track, 'volume_automation'):
             self._track.volume_automation = None
         self._track.volume_automation = curve
         return self
 
-    def automate_pan(self, curve: AutomationCurve) -> 'TrackBuilder':
+    def automate_pan(self: _TB, curve: AutomationCurve) -> _TB:
         """Attach a pan automation curve to this track."""
         if not hasattr(self._track, 'pan_automation'):
             self._track.pan_automation = None

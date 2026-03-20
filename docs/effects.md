@@ -1,6 +1,15 @@
 # Effects & Sidechain API Reference
 
-Complete API reference for the `beatmaker.effects` and `beatmaker.sidechain` modules.
+Complete API reference for the `beatmaker.effects` subpackage (previously `beatmaker.effects` and `beatmaker.sidechain` modules).
+
+**Subpackage modules:**
+- `beatmaker/effects/base.py` -- `AudioEffect` base class and `EffectChain`
+- `beatmaker/effects/dynamics.py` -- `Gain`, `Limiter`, `SoftClipper`, `Compressor`
+- `beatmaker/effects/time_based.py` -- `Delay`, `Reverb`, `Chorus`
+- `beatmaker/effects/filters.py` -- `LowPassFilter`, `HighPassFilter`, `BitCrusher`
+- `beatmaker/effects/sidechain.py` -- `SidechainCompressor`, `SidechainEnvelope`, `PumpingBass`, `SidechainBuilder`, `SidechainPresets`, `create_sidechain`
+
+> **Note:** The old import path `from beatmaker.sidechain import ...` still works via a backward-compatibility stub but is deprecated. Use `from beatmaker.effects import ...` or `from beatmaker.effects.sidechain import ...` for new code. See the [Migration Guide](migration_v0.3_to_v0.4.md).
 
 All effect classes inherit from `AudioEffect` and implement the `.process(audio: AudioData) -> AudioData` method. Effects are dataclasses unless otherwise noted.
 

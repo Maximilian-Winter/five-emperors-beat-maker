@@ -16,8 +16,8 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Dict
 import re
 
-from .arpeggiator import Scale, ChordShape, note_name_to_midi
-from .melody import midi_to_note_name
+# Music theory — canonical source is beatmaker.music
+from .music import Scale, ChordShape, note_name_to_midi, midi_to_note_name
 
 
 # ─── Constants ──────────────────────────────────────────────────────────────

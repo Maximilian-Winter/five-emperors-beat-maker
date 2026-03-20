@@ -17,21 +17,9 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Tuple, Union
 import numpy as np
 
-from .arpeggiator import note_name_to_midi
-
-
-# ─── MIDI ↔ Name Conversion ────────────────────────────────────────────────
-
-_NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
-_FLAT_TO_SHARP = {'Db': 'C#', 'Eb': 'D#', 'Fb': 'E', 'Gb': 'F#',
-                  'Ab': 'G#', 'Bb': 'A#', 'Cb': 'B'}
-
-
-def midi_to_note_name(midi_note: int) -> str:
-    """Convert MIDI note number to note name (e.g., 60 → 'C4')."""
-    octave = (midi_note // 12) - 1
-    note_index = midi_note % 12
-    return f"{_NOTE_NAMES[note_index]}{octave}"
+# Music theory — canonical source is beatmaker.music
+# Re-exported here for backward compatibility
+from .music import note_name_to_midi, midi_to_note_name  # noqa: F401
 
 
 # ─── Note ───────────────────────────────────────────────────────────────────

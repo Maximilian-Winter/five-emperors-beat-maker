@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "beatmaker-spc700"
+version = "0.4.0-dev"
+description = "SPC700 (SNES) sound chip integration for the beatmaker library"
+requires-python = ">=3.9"
+license = "MIT"
+dependencies = ["beatmaker>=0.4", "numpy"]
+
+[tool.setuptools.packages.find]
+include = ["beatmaker_spc700*"]

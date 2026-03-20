@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(xargs wc:*)",
+      "Bash(wc:*)",
+      "Bash(python -c \"from beatmaker import *; print\\(f''All {len\\([x for x in dir\\(\\) if not x.startswith\\(\"\"_\"\"\\)]\\)} exports loaded successfully''\\)\")",
+      "Bash(python -m pytest tests/test_music.py -v)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(python -m pytest tests/test_harmony.py tests/test_arrangement.py -v --tb=short)",
+      "Bash(python -m pytest tests/test_expression.py -v --tb=short)",
+      "Bash(python -c \"from beatmaker import *; print\\(f''All imports OK''\\)\")",
+      "Bash(python -c \"from beatmaker.effects import Gain, SidechainCompressor; print\\(''effects subpackage OK''\\)\")",
+      "Bash(python -c \"from beatmaker.sidechain import SidechainCompressor; print\\(''sidechain backward compat OK''\\)\")",
+      "Bash(python -c \"from beatmaker.synthesis import DrumSynth; print\\(''synthesis subpackage OK''\\)\")",
+      "Bash(python -c \"from beatmaker import *; print\\(''All imports OK''\\)\")",
+      "Bash(python -m pytest tests/ --tb=short -q)",
+      "Bash(python -m pytest tests/test_builder.py -v --tb=short)",
+      "Bash(python -c \"from beatmaker.graph import SignalGraph, AudioInput, GainNode; print\\(''Graph subpackage OK''\\)\")",
+      "Bash(python -c \"from beatmaker import *; print\\(f''OK - {len\\([x for x in dir\\(\\) if not x.startswith\\(\"\"_\"\"\\)]\\)} names loaded''\\)\")",
+      "Bash(python -c \"from beatmaker import *; print\\(''OK''\\)\")",
+      "Bash(python -c \"from beatmaker.synthesis import DrumSynth, PadSynth, sine_wave; print\\(''OK''\\)\")",
+      "Bash(python -c \"from beatmaker.effects import Gain, SidechainCompressor, EffectChain; print\\(''OK''\\)\")",
+      "Bash(python -c \"from beatmaker.graph import SignalGraph, AudioInput, GainNode; print\\(''OK''\\)\")",
+      "Bash(python -c \"from beatmaker.music import note_name_to_midi, Scale, ChordShape; print\\(''OK''\\)\")",
+      "Bash(find beatmaker-spc700:*)",
+      "Bash(find examples:*)",
+      "Bash(python -m pytest tests/ -q)",
+      "Bash(python -c \":*)",
+      "Bash(python -c \"import beatmaker; print\\(f''Version: {beatmaker.__version__}''\\); print\\(f''Public API: {len\\(beatmaker.__all__\\)} exports''\\)\")",
+      "Bash(python -c \"from beatmaker import *; print\\(''Top-level OK''\\)\")",
+      "Bash(python -c \"from beatmaker.synthesis import DrumSynth; from beatmaker.effects import Gain, SidechainCompressor; from beatmaker.graph import SignalGraph; from beatmaker.music import Scale; print\\(''Subpackages OK''\\)\")",
+      "Bash(python -c \"from beatmaker.synth import DrumSynth; from beatmaker.sidechain import SidechainCompressor; print\\(''Backward compat OK''\\)\")"
+    ]
+  }
+}
