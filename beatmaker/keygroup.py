@@ -440,7 +440,12 @@ class KeygroupProgram:
 
     @staticmethod
     def _fit_duration(audio: AudioData, target_samples: int) -> AudioData:
-        """Trim or zero-pad audio to exactly target_samples length."""
+        """Trim or loop audio to exactly target_samples length.
+
+        When the source is shorter than the target (common with
+        single-cycle waveforms like AKWF), the audio is looped to
+        fill the duration — just like a hardware sampler's loop mode.
+        """
         current = len(audio.samples)
         if current >= target_samples:
             return AudioData(
@@ -448,9 +453,10 @@ class KeygroupProgram:
                 sample_rate=audio.sample_rate,
             )
         else:
-            padded = np.zeros(target_samples, dtype=np.float64)
-            padded[:current] = audio.samples
-            return AudioData(samples=padded, sample_rate=audio.sample_rate)
+            # Loop the source to fill the target duration
+            repeats = (target_samples // current) + 1
+            looped = np.tile(audio.samples, repeats)[:target_samples]
+            return AudioData(samples=looped.copy(), sample_rate=audio.sample_rate)
 
     @staticmethod
     def _apply_fade_out(audio: AudioData, fade_ms: float = 5.0) -> AudioData:

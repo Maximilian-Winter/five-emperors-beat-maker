@@ -369,25 +369,32 @@ def compose():
         .build()
     )
 
-    # ── Post-render: Apply Vibrato to flute ───────────────────────────
-    # Render the song first, then apply vibrato as an expression layer
+    # ── Render and Export ───────────────────────────────────────────────
     print("Rendering composition...")
     audio = song.render()
 
-    # Apply gentle vibrato to the full mix
-    # (In a production pipeline, you'd apply this per-track before mixing,
-    #  but here we demonstrate the Vibrato expression API on the output)
-    vibrato = Vibrato(
-        rate=4.5,       # Gentle oscillation
-        depth=0.3,      # Subtle — half a semitone at most
-        delay=0.5,      # Let notes establish before vibrato onset
-    )
+    # ── Post-render: Apply Vibrato to the flute track separately ─────
+    # Render just the flute track, apply vibrato, then mix back in.
+    # This demonstrates the Vibrato expression API without destroying
+    # the other layers.
+    flute_track = song.get_track("Jade Flute")
+    if flute_track is not None:
+        print("Applying vibrato expression to flute...")
+        flute_audio = flute_track.render(song.sample_rate, 2, song.bpm)
+        vibrato = Vibrato(
+            rate=4.5,       # Gentle oscillation
+            depth=0.3,      # Subtle — under half a semitone
+            delay=0.5,      # Let notes establish before vibrato onset
+        )
+        flute_vibrato = vibrato.apply(flute_audio, base_freq=note_to_freq("D5"))
 
-    # Apply vibrato tuned to the key center (D4 = 293.66 Hz)
-    print("Applying vibrato expression...")
-    audio = vibrato.apply(audio, base_freq=note_to_freq("D4"))
+        # Replace the dry flute in the mix with the vibrato version
+        # (subtract dry, add wet — both are the same length)
+        dry = flute_audio.samples
+        wet = flute_vibrato.samples
+        mix_len = min(len(audio.samples), len(dry), len(wet))
+        audio.samples[:mix_len] = audio.samples[:mix_len] - dry[:mix_len] + wet[:mix_len]
 
-    # ── Export ─────────────────────────────────────────────────────────
     print(f"Exporting to: {OUTPUT_PATH}")
     save_audio(audio, OUTPUT_PATH)
     print("Done.")
