@@ -39,8 +39,8 @@ import os
 from pathlib import Path
 
 from beatmaker import DrumSynth
-from beatmaker.spc import SPC700Sound, SPC700Engine
-from beatmaker.spc700 import (
+from beatmaker_spc700 import (
+    SPC700Sound, SPC700Engine,
     EchoConfig, ADSR, Gain,
     Song, Track, Instrument,
     Note, Rest, SetInstrument, SetEnvelope,
@@ -51,7 +51,7 @@ from beatmaker.spc700 import (
 #  WAVEFORM PATHS
 # ═══════════════════════════════════════════════════════════════════
 
-AKWF = Path("AKWF-FREE/AKWF")
+AKWF = Path(r"H:\Dev42\beat-maker\downloaded_samples_etc\AKWF-FREE\AKWF")
 
 VIOLIN_WAV  = AKWF / "AKWF_violin" / "AKWF_violin_0003.wav"  # rich, expressive
 CELLO_WAV   = AKWF / "AKWF_cello"  / "AKWF_cello_0002.wav"   # warm, full
@@ -407,7 +407,7 @@ for transpose, vel in [(0, 0.8), (5, 0.75), (0, 0.85), (-2, 0.7),
                   ('G4', HALF), ('F4', QTR), ('E4', QTR)]
     for note_name, dur in base_notes:
         # Simple transposition by adding semitones via note lookup
-        from beatmaker.spc700 import note_to_midi, midi_to_freq
+        from beatmaker_spc700 import note_to_midi, midi_to_freq
         midi = note_to_midi(note_name) + transpose
         # Convert back to frequency for the note
         v_lead.note(float(midi_to_freq(midi)), dur * 0.5, velocity=vel)

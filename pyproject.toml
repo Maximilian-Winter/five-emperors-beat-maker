@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "beatmaker"
-version = "0.4.0-dev"
+version = "0.4.0"
 description = "A Python library for creating beats and songs with a fluent builder pattern"
 readme = "README.md"
 requires-python = ">=3.9"

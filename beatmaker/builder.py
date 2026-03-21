@@ -216,6 +216,36 @@ class SongBuilder:
         builder(bass_builder)
         self._song.add_track(track)
         return self
+
+    def add_keygroup(
+        self,
+        name: str,
+        program: 'KeygroupProgram',
+        builder_fn: Callable[['KeygroupTrackBuilder'], 'KeygroupTrackBuilder'],
+    ) -> 'SongBuilder':
+        """Add a keygroup-based track to the song.
+
+        Parameters
+        ----------
+        name : str
+            Track name (e.g. "Sampled Piano", "Pad Layer").
+        program : KeygroupProgram
+            The keygroup instrument to use as the sound source.
+        builder_fn : callable
+            A lambda/function that receives a KeygroupTrackBuilder
+            and configures it by placing notes, phrases, effects, etc.
+
+        Returns
+        -------
+        self
+        """
+        from beatmaker.keygroup import KeygroupTrackBuilder
+
+        track = Track(name=name, track_type=TrackType.LEAD)
+        builder = KeygroupTrackBuilder(track, self._song, program)
+        builder_fn(builder)
+        self._song.add_track(track)
+        return self
     
     def add_vocal(self, path: Union[str, Path], 
                   start_bar: float = 0,
@@ -1272,6 +1302,35 @@ class SectionBuilder:
             library=self._library)
         builder(harmony_builder)
         harmony_builder.render_harmony()
+        self._section.add_track(track)
+        return self
+
+    def add_keygroup(
+        self,
+        name: str,
+        program: 'KeygroupProgram',
+        builder_fn: Callable[['KeygroupTrackBuilder'], 'KeygroupTrackBuilder'],
+    ) -> 'SectionBuilder':
+        """Add a keygroup-based track to this section.
+
+        Parameters
+        ----------
+        name : str
+            Track name.
+        program : KeygroupProgram
+            The keygroup instrument.
+        builder_fn : callable
+            Builder configuration function.
+
+        Returns
+        -------
+        self
+        """
+        from beatmaker.keygroup import KeygroupTrackBuilder
+
+        track = Track(name=name, track_type=TrackType.LEAD)
+        builder = KeygroupTrackBuilder(track, self._song, program)
+        builder_fn(builder)
         self._section.add_track(track)
         return self
 

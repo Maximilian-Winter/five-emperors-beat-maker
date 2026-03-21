@@ -31,7 +31,10 @@
       "Bash(python -c \"from beatmaker import *; print\\(''Top-level OK''\\)\")",
       "Bash(python -c \"from beatmaker.synthesis import DrumSynth; from beatmaker.effects import Gain, SidechainCompressor; from beatmaker.graph import SignalGraph; from beatmaker.music import Scale; print\\(''Subpackages OK''\\)\")",
       "Bash(python -c \"from beatmaker.synth import DrumSynth; from beatmaker.sidechain import SidechainCompressor; print\\(''Backward compat OK''\\)\")",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(done)",
+      "Bash(timeout 60 python examples/compositions/midnight_study_session.py)",
+      "Bash(python:*)"
     ]
   }
 }

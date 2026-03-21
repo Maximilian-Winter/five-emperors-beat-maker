@@ -69,41 +69,134 @@ def load_audio(path: Union[str, Path]) -> AudioData:
 
 
 def _load_wav(path: Path) -> AudioData:
-    """Load a WAV file natively."""
-    with wave.open(str(path), 'rb') as wav:
-        channels = wav.getnchannels()
-        sample_width = wav.getsampwidth()
-        sample_rate = wav.getframerate()
-        n_frames = wav.getnframes()
-        
-        raw_data = wav.readframes(n_frames)
-    
-    # Determine format string based on sample width
+    """Load a WAV file natively.
+
+    Supports PCM 8/16/24/32-bit and IEEE float 32/64-bit WAV files.
+    Python's wave module only handles PCM (format 1), so for IEEE float
+    (format 3) and 24-bit PCM we parse the RIFF chunks directly.
+    """
+    try:
+        # Try the standard library first (handles PCM 8/16-bit)
+        with wave.open(str(path), 'rb') as wav:
+            channels = wav.getnchannels()
+            sample_width = wav.getsampwidth()
+            sample_rate = wav.getframerate()
+            n_frames = wav.getnframes()
+            raw_data = wav.readframes(n_frames)
+        return _decode_pcm(raw_data, sample_width, channels, sample_rate, n_frames)
+    except wave.Error:
+        # Format not supported by wave module — parse RIFF manually
+        return _load_wav_raw(path)
+
+
+def _decode_pcm(raw_data: bytes, sample_width: int, channels: int,
+                sample_rate: int, n_frames: int) -> AudioData:
+    """Decode PCM WAV data (8/16/24/32-bit) to float64."""
+    total_samples = n_frames * channels
+
     if sample_width == 1:
-        fmt = f'{n_frames * channels}B'  # unsigned 8-bit
-        max_val = 128.0
-        offset = 128
+        # Unsigned 8-bit
+        data = np.frombuffer(raw_data, dtype=np.uint8).astype(np.float64)
+        data = (data - 128.0) / 128.0
     elif sample_width == 2:
-        fmt = f'{n_frames * channels}h'  # signed 16-bit
-        max_val = 32768.0
-        offset = 0
+        # Signed 16-bit
+        data = np.frombuffer(raw_data, dtype=np.int16).astype(np.float64)
+        data /= 32768.0
+    elif sample_width == 3:
+        # 24-bit PCM — no native numpy dtype, unpack manually
+        raw = np.frombuffer(raw_data, dtype=np.uint8)
+        raw = raw[:total_samples * 3].reshape(-1, 3)
+        # Reconstruct as 32-bit signed int (left-shift by 8 for sign extension)
+        data = (raw[:, 0].astype(np.int32)
+                | (raw[:, 1].astype(np.int32) << 8)
+                | (raw[:, 2].astype(np.int32) << 16))
+        # Sign-extend from 24-bit
+        data = np.where(data >= 0x800000, data - 0x1000000, data)
+        data = data.astype(np.float64) / 8388608.0
     elif sample_width == 4:
-        fmt = f'{n_frames * channels}i'  # signed 32-bit
-        max_val = 2147483648.0
-        offset = 0
+        # Signed 32-bit
+        data = np.frombuffer(raw_data, dtype=np.int32).astype(np.float64)
+        data /= 2147483648.0
     else:
         raise ValueError(f"Unsupported sample width: {sample_width}")
-    
-    # Unpack and normalize to float
-    int_data = struct.unpack(fmt, raw_data)
-    float_data = np.array(int_data, dtype=np.float64)
-    float_data = (float_data - offset) / max_val
-    
-    # Reshape for multi-channel
+
     if channels > 1:
-        float_data = float_data.reshape(-1, channels)
-    
-    return AudioData(float_data, sample_rate, channels)
+        data = data.reshape(-1, channels)
+
+    return AudioData(data, sample_rate, channels)
+
+
+def _load_wav_raw(path: Path) -> AudioData:
+    """Parse a WAV file at the RIFF chunk level.
+
+    Handles IEEE float (format tag 3) and 24-bit PCM which Python's
+    wave module rejects.
+    """
+    with open(path, 'rb') as f:
+        # RIFF header
+        riff = f.read(4)
+        if riff != b'RIFF':
+            raise ValueError(f"Not a RIFF file: {path}")
+        f.read(4)  # file size
+        wave_id = f.read(4)
+        if wave_id != b'WAVE':
+            raise ValueError(f"Not a WAVE file: {path}")
+
+        fmt_tag = None
+        channels = 1
+        sample_rate = 44100
+        bits_per_sample = 16
+        raw_data = b''
+
+        # Read chunks
+        while True:
+            chunk_header = f.read(8)
+            if len(chunk_header) < 8:
+                break
+            chunk_id = chunk_header[:4]
+            chunk_size = struct.unpack('<I', chunk_header[4:8])[0]
+
+            if chunk_id == b'fmt ':
+                fmt_data = f.read(chunk_size)
+                fmt_tag = struct.unpack('<H', fmt_data[0:2])[0]
+                channels = struct.unpack('<H', fmt_data[2:4])[0]
+                sample_rate = struct.unpack('<I', fmt_data[4:8])[0]
+                bits_per_sample = struct.unpack('<H', fmt_data[14:16])[0]
+            elif chunk_id == b'data':
+                raw_data = f.read(chunk_size)
+            else:
+                f.seek(chunk_size, 1)
+
+            # Chunks are word-aligned
+            if chunk_size % 2 == 1:
+                f.read(1)
+
+    if fmt_tag is None:
+        raise ValueError(f"No fmt chunk found in {path}")
+
+    n_frames = len(raw_data) // (channels * (bits_per_sample // 8))
+
+    if fmt_tag == 1:
+        # PCM — delegate to decoder (handles 24-bit)
+        return _decode_pcm(raw_data, bits_per_sample // 8, channels,
+                           sample_rate, n_frames)
+    elif fmt_tag == 3:
+        # IEEE float
+        if bits_per_sample == 32:
+            data = np.frombuffer(raw_data, dtype=np.float32).astype(np.float64)
+        elif bits_per_sample == 64:
+            data = np.frombuffer(raw_data, dtype=np.float64).copy()
+        else:
+            raise ValueError(f"Unsupported float bit depth: {bits_per_sample}")
+
+        if channels > 1:
+            data = data.reshape(-1, channels)
+        return AudioData(data, sample_rate, channels)
+    else:
+        raise ValueError(
+            f"Unsupported WAV format tag: {fmt_tag} in {path}. "
+            f"Supported: 1 (PCM), 3 (IEEE float)"
+        )
 
 
 def _load_with_pydub(path: Path) -> AudioData:

@@ -69,6 +69,10 @@ from .builder import (
     create_song,
 )
 
+# ── Keygroup (MPC-style sample instruments) ──────────────────────────────────
+
+from .keygroup import KeygroupProgram, KeygroupTrackBuilder
+
 # ── Synthesis (beatmaker.synthesis subpackage) ───────────────────────────────
 
 from .synthesis import (
@@ -296,6 +300,9 @@ __all__ = [
     "Song", "SongBuilder", "TrackBuilder", "DrumTrackBuilder",
     "BassTrackBuilder", "MelodyTrackBuilder", "HarmonyTrackBuilder",
     "SectionBuilder", "create_song",
+
+    # Keygroup
+    "KeygroupProgram", "KeygroupTrackBuilder",
 
     # Synthesis
     "Waveform", "Oscillator", "ADSREnvelope",
