@@ -1,0 +1,150 @@
+{
+  "version": 1,
+  "name": "test_organ",
+  "source_file": "H:\\Dev42\\audio_exploring\\scaler_framework\\examples\\test_C4.wav",
+  "source_pitch": {
+    "hz": 261.63,
+    "midi_note": 60,
+    "note_name": "C4",
+    "confidence": 1.0,
+    "cents_offset": 0.0
+  },
+  "scale": {
+    "root": 0,
+    "scale_type": "major"
+  },
+  "octave_range": [
+    3,
+    5
+  ],
+  "sample_rate": 22050,
+  "created": "2026-03-27T20:52:03.117038+00:00",
+  "mappings": [
+    {
+      "midi_note": 48,
+      "note_name": "C3",
+      "semitone_shift": -12,
+      "file": "samples/C3.wav"
+    },
+    {
+      "midi_note": 50,
+      "note_name": "D3",
+      "semitone_shift": -10,
+      "file": "samples/D3.wav"
+    },
+    {
+      "midi_note": 52,
+      "note_name": "E3",
+      "semitone_shift": -8,
+      "file": "samples/E3.wav"
+    },
+    {
+      "midi_note": 53,
+      "note_name": "F3",
+      "semitone_shift": -7,
+      "file": "samples/F3.wav"
+    },
+    {
+      "midi_note": 55,
+      "note_name": "G3",
+      "semitone_shift": -5,
+      "file": "samples/G3.wav"
+    },
+    {
+      "midi_note": 57,
+      "note_name": "A3",
+      "semitone_shift": -3,
+      "file": "samples/A3.wav"
+    },
+    {
+      "midi_note": 59,
+      "note_name": "B3",
+      "semitone_shift": -1,
+      "file": "samples/B3.wav"
+    },
+    {
+      "midi_note": 60,
+      "note_name": "C4",
+      "semitone_shift": 0,
+      "file": "samples/C4.wav"
+    },
+    {
+      "midi_note": 62,
+      "note_name": "D4",
+      "semitone_shift": 2,
+      "file": "samples/D4.wav"
+    },
+    {
+      "midi_note": 64,
+      "note_name": "E4",
+      "semitone_shift": 4,
+      "file": "samples/E4.wav"
+    },
+    {
+      "midi_note": 65,
+      "note_name": "F4",
+      "semitone_shift": 5,
+      "file": "samples/F4.wav"
+    },
+    {
+      "midi_note": 67,
+      "note_name": "G4",
+      "semitone_shift": 7,
+      "file": "samples/G4.wav"
+    },
+    {
+      "midi_note": 69,
+      "note_name": "A4",
+      "semitone_shift": 9,
+      "file": "samples/A4.wav"
+    },
+    {
+      "midi_note": 71,
+      "note_name": "B4",
+      "semitone_shift": 11,
+      "file": "samples/B4.wav"
+    },
+    {
+      "midi_note": 72,
+      "note_name": "C5",
+      "semitone_shift": 12,
+      "file": "samples/C5.wav"
+    },
+    {
+      "midi_note": 74,
+      "note_name": "D5",
+      "semitone_shift": 14,
+      "file": "samples/D5.wav"
+    },
+    {
+      "midi_note": 76,
+      "note_name": "E5",
+      "semitone_shift": 16,
+      "file": "samples/E5.wav"
+    },
+    {
+      "midi_note": 77,
+      "note_name": "F5",
+      "semitone_shift": 17,
+      "file": "samples/F5.wav"
+    },
+    {
+      "midi_note": 79,
+      "note_name": "G5",
+      "semitone_shift": 19,
+      "file": "samples/G5.wav"
+    },
+    {
+      "midi_note": 81,
+      "note_name": "A5",
+      "semitone_shift": 21,
+      "file": "samples/A5.wav"
+    },
+    {
+      "midi_note": 83,
+      "note_name": "B5",
+      "semitone_shift": 23,
+      "file": "samples/B5.wav"
+    }
+  ]
+}
