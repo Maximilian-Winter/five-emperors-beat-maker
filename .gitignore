@@ -17,3 +17,5 @@ build/
 .mypy_cache/
 .coverage
 htmlcov/
+/beatmaker-spc700/beatmaker_spc700.egg-info
+/beatmaker-spc700/beatmaker_spc700.egg-info
