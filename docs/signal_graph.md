@@ -1,5 +1,7 @@
 # Signal Graph
 
+[Documentation guide](README.md) | [Song and track builders](song_building.md)
+
 The signal graph is a modular audio processing framework that lets you build
 arbitrary signal-flow networks from composable nodes. Instead of a fixed
 processing chain, you wire together sources, processors, combiners, and

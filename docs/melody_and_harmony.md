@@ -1,5 +1,7 @@
 # Melody and Harmony API Reference
 
+[Documentation guide](README.md) | [Song and track builders](song_building.md)
+
 Complete API reference for the `beatmaker.melody`, `beatmaker.harmony`, and `beatmaker.music` modules. These modules provide first-class abstractions for melodic composition, harmonic context, chord progressions, scale definitions, and chord shapes.
 
 **Module paths:**

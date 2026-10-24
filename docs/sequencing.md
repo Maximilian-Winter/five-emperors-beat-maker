@@ -1,5 +1,7 @@
 # Sequencing, Patterns & Arpeggiator API Reference
 
+[Documentation guide](README.md) | [Song and track builders](song_building.md)
+
 Complete API reference for the `beatmaker.sequencer` and `beatmaker.arpeggiator` modules.
 
 ---

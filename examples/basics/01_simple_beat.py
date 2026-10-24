@@ -7,9 +7,6 @@ Demonstrating the power of the Five Emperors Beat Maker.
 急急如律令敕 - Urgent as the Cosmic Law Commands!
 """
 
-import sys
-sys.path.insert(0, '/home/claude')
-
 from beatmaker import (
     create_song,
     DrumSynth,

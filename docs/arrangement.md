@@ -1,5 +1,7 @@
 # Arrangement, Automation & Expression
 
+[Documentation guide](README.md) | [Song and track builders](song_building.md)
+
 This document covers three tightly related modules that together control the
 macro-structure and micro-feel of a beatmaker project:
 

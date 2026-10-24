@@ -1,18 +1,42 @@
-# Beat Maker Examples
+# Examples
 
-## Basics
-- `basics/01_simple_beat.py` — Multiple beginner examples: house beat, sample loading, drum patterns, bass synth, effects chains, and more
+Install the checkout into your active Python environment before running scripts:
 
-## Advanced
-- `advanced/01_all_features.py` — Grand demonstration of all v0.2 features: step sequencer, euclidean rhythms, arpeggiator, sidechain, synths, MIDI export
-- `advanced/02_extended.py` — SNES-style mountain cultivation theme with pentatonic melodies and meditative loops
-- `advanced/03_full_example.py` — Comprehensive v0.3 examples (1-13) covering core features, phrase transformations, arrangement, and signal graph
-- `advanced/04_signal_graph.py` — Declarative signal graph system: ring modulator, parallel compression, auto-wah, vocoder
+```sh
+python -m pip install -e .
+python examples/basics/02_direct_api.py
+```
 
-## Compositions
-- `compositions/ada_lovelace_theme.py` — "The Enchantress of Numbers": a Victorian portrait in algorithmic sound using melody, harmony, automation, arrangement, and expression modules
-- `compositions/ada_lovelace_theme_v2.py` — Version II: the same composition rewoven through SPC700 S-DSP emulation with BRR compression and Gaussian interpolation
-- `compositions/nine_heavens_theme.py` — Theme of the Nine Heavens: each of the nine celestial realms represented in sound
-- `compositions/nine_heavens_theme_v2.py` — Nine Heavens v2: recomposed with phrase transformations, signal graph, automation curves, groove templates, and humanizer
-- `compositions/the_two_forces.py` — "The Two Forces": a meditation on the duality of Byron's poetic wildness and mathematical order, unified through poetical science
-- `compositions/game_ost.py` — SNES-style game OST with mountain cultivation, demon battle, and breakthrough fanfare tracks
+Run from the repository root. Export paths are relative to your working
+directory. The direct-API example creates `direct_api.wav` with synthesized
+sounds and needs no sample files or optional audio packages.
+
+## Start here
+
+- [02_direct_api.py](basics/02_direct_api.py): a small complete song using direct
+  track builders, phrases, humanization, a reusable section, and WAV export.
+- [01_simple_beat.py](basics/01_simple_beat.py): five drum-and-bass recipes using
+  the callback API: house, trap, lo-fi, techno, and drum and bass.
+
+## Explore a feature
+
+- [01_all_features.py](advanced/01_all_features.py): sequencers, Euclidean
+  rhythms, arpeggios, sidechain, synthesis, and MIDI.
+- [02_extended.py](advanced/02_extended.py): pentatonic melodies and loops.
+- [03_full_example.py](advanced/03_full_example.py): phrase transformations,
+  arrangement, automation, expression, and signal graphs.
+- [04_signal_graph.py](advanced/04_signal_graph.py): ring modulation, parallel
+  compression, auto-wah, and vocoder routing.
+- [keygroup_demo.py](advanced/keygroup_demo.py): sampled instruments; check its
+  source paths before running.
+
+## Larger compositions
+
+The [compositions](compositions/) directory contains longer pieces showing how
+to combine these features. Some require external sample folders or the optional
+`beatmaker-spc700` package. Read each script's imports and configuration first.
+These are musical studies rather than the recommended starting point for the API.
+
+See the [song-building guide](../docs/song_building.md) for timing rules and
+[the migration guide](../docs/migration.md) to translate callback chains into
+direct track access.

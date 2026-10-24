@@ -44,7 +44,8 @@ from typing import Optional, Union, List, Tuple, TYPE_CHECKING
 
 import numpy as np
 
-from beatmaker.core import AudioData, Sample, Track, TrackType, AudioEffect
+from beatmaker.builder import TrackBuilder
+from beatmaker.core import AudioData, Sample, Track
 from beatmaker.music import (
     note_to_freq,
     note_name_to_midi,
@@ -55,9 +56,8 @@ from beatmaker.synthesis.oscillator import ADSREnvelope
 
 if TYPE_CHECKING:
     from beatmaker.melody import Phrase
-    from beatmaker.builder import SongBuilder
+    from beatmaker.builder import Song
     from beatmaker.automation import AutomationCurve
-    from beatmaker.expression import Humanizer, GrooveTemplate
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -477,7 +477,7 @@ class KeygroupProgram:
 # ═══════════════════════════════════════════════════════════════════
 
 
-class KeygroupTrackBuilder:
+class KeygroupTrackBuilder(TrackBuilder):
     """Fluent builder for creating a track from a KeygroupProgram.
 
     Follows the same patterns as DrumTrackBuilder, BassTrackBuilder,
@@ -503,13 +503,12 @@ class KeygroupTrackBuilder:
     def __init__(
         self,
         track: Track,
-        song: 'SongBuilder',
+        song: 'Song',
         program: KeygroupProgram,
+        library=None,
     ):
-        self._track = track
-        self._song = song
+        super().__init__(track, song, library=library)
         self._program = program
-        self._placements: List[Tuple[float, Sample]] = []
 
     # ── Note Placement ────────────────────────────────────────────
 
@@ -696,72 +695,6 @@ class KeygroupTrackBuilder:
 
     # ── Track Configuration ───────────────────────────────────────
 
-    def volume(self, level: float) -> 'KeygroupTrackBuilder':
-        """Set the track volume.
-
-        Parameters
-        ----------
-        level : float
-            Volume level (0.0 to 1.0).
-        """
-        self._track.volume = level
-        return self
-
-    def pan(self, value: float) -> 'KeygroupTrackBuilder':
-        """Set the track pan position.
-
-        Parameters
-        ----------
-        value : float
-            Pan position (-1.0 = full left, 0.0 = center, 1.0 = full right).
-        """
-        self._track.pan = value
-        return self
-
-    def effect(self, effect: AudioEffect) -> 'KeygroupTrackBuilder':
-        """Add an effect to the track's effect chain.
-
-        Parameters
-        ----------
-        effect : AudioEffect
-            Any beatmaker effect (Reverb, Delay, Compressor, etc.).
-        """
-        self._track.add_effect(effect)
-        return self
-
-    def humanize(
-        self,
-        timing: float = 0.01,
-        velocity: float = 0.1,
-        seed: Optional[int] = None,
-    ) -> 'KeygroupTrackBuilder':
-        """Apply humanization to the track.
-
-        Parameters
-        ----------
-        timing : float
-            Maximum timing jitter in seconds.
-        velocity : float
-            Maximum velocity variation.
-        seed : int, optional
-            Random seed for reproducibility.
-        """
-        from beatmaker.expression import Humanizer
-        h = Humanizer(timing_jitter=timing, velocity_variation=velocity, seed=seed)
-        h.apply_to_track(self._track)
-        return self
-
-    def groove(self, template: 'GrooveTemplate') -> 'KeygroupTrackBuilder':
-        """Apply a groove template to the track.
-
-        Parameters
-        ----------
-        template : GrooveTemplate
-            Groove template to apply.
-        """
-        template.apply_to_track(self._track, bpm=self._song.bpm)
-        return self
-
     def automate_volume(self, curve: 'AutomationCurve') -> 'KeygroupTrackBuilder':
         """Apply volume automation to the track.
 
@@ -793,59 +726,3 @@ class KeygroupTrackBuilder:
             AutomatedFilter(curve, self._song.bpm, filter_type=filter_type)
         )
         return self
-
-
-# ═══════════════════════════════════════════════════════════════════
-#  SongBuilder Integration
-# ═══════════════════════════════════════════════════════════════════
-#
-#  To integrate with the existing builder chain, add this method
-#  to the SongBuilder class (in beatmaker/builder.py):
-#
-#      def add_keygroup(
-#          self,
-#          name: str,
-#          program: KeygroupProgram,
-#          builder_fn: Callable[[KeygroupTrackBuilder], KeygroupTrackBuilder],
-#      ) -> 'SongBuilder':
-#          """Add a keygroup-based track to the song.
-#
-#          Parameters
-#          ----------
-#          name : str
-#              Track name.
-#          program : KeygroupProgram
-#              The keygroup instrument to use.
-#          builder_fn : callable
-#              A function that receives a KeygroupTrackBuilder and
-#              configures it (placing notes, setting effects, etc.).
-#
-#          Returns
-#          -------
-#          self
-#          """
-#          from beatmaker.keygroup import KeygroupTrackBuilder
-#          track = Track(name=name, track_type=TrackType.LEAD)
-#          builder = KeygroupTrackBuilder(track, self, program)
-#          builder_fn(builder)
-#          self._tracks.append(track)
-#          return self
-#
-#  And for the SectionBuilder (used by create_song().section()):
-#
-#      def add_keygroup(
-#          self,
-#          name: str,
-#          program: KeygroupProgram,
-#          builder_fn: Callable[[KeygroupTrackBuilder], KeygroupTrackBuilder],
-#      ) -> 'SectionBuilder':
-#          from beatmaker.keygroup import KeygroupTrackBuilder
-#          track = Track(name=name, track_type=TrackType.LEAD)
-#          builder = KeygroupTrackBuilder(track, self._song_builder, program)
-#          builder_fn(builder)
-#          self._section.add_track(track)
-#          return self
-#
-#  Then export from beatmaker/__init__.py:
-#
-#      from beatmaker.keygroup import KeygroupProgram, KeygroupTrackBuilder

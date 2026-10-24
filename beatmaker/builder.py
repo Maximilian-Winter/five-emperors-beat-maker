@@ -1,20 +1,10 @@
-"""
-靈寶五帝策使編碼之法 - Song Builder Module
-The fluent interface through which compositions manifest.
-
-By the Azure Dragon's authority,
-Let this structure grow strong and flexible,
-Roots deep, branches reaching,
-急急如律令敕
-
-This module provides a builder pattern for constructing beats and songs
-with a clean, chainable API.
-"""
+"""Song and track builders for composition, arrangement, and audio export."""
 
 from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional, List, Union, Callable, TypeVar
+from typing import Optional, List, Union, Callable, TypeVar, TYPE_CHECKING
+import math
 import numpy as np
 from tqdm import tqdm
 
@@ -22,9 +12,24 @@ from .core import (
     AudioData, Sample, Track, TrackType,
     TimeSignature, SamplePlacement, AudioEffect
 )
-from .effects import EffectChain, Limiter, Compressor
+from .effects import Limiter, Compressor
 from .io import save_audio, load_audio
 from .automation import AutomationCurve
+
+if TYPE_CHECKING:
+    from .arrangement import Section
+    from .io import SampleLibrary
+    from .keygroup import KeygroupProgram, KeygroupTrackBuilder
+
+
+def _positive(value: float, name: str) -> None:
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(f"{name} must be a positive finite number")
+
+
+def _positive_int(value: int, name: str) -> None:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise ValueError(f"{name} must be a positive integer")
 
 
 @dataclass
@@ -120,7 +125,114 @@ class Song:
         return path
 
 
-class SongBuilder:
+_CB = TypeVar('_CB', bound='_TrackContainerBuilder')
+_TB = TypeVar('_TB', bound='TrackBuilder')
+_DTB = TypeVar('_DTB', bound='_DeferredTrackBuilder')
+
+
+class _TrackContainerBuilder:
+    """Shared track creation for songs and reusable sections."""
+
+    _song: Song
+    _library: Optional[SampleLibrary]
+
+    def _init_tracks(self, target: Union[Song, Section], bars: int) -> None:
+        self._track_target = target
+        self._current_bar_length = bars
+        self._track_builders: List[TrackBuilder] = []
+
+    def _attach(self, track_builder: _TB) -> _TB:
+        self._track_target.add_track(track_builder._track)
+        self._track_builders.append(track_builder)
+        return track_builder
+
+    def _finish_tracks(self) -> None:
+        for track_builder in self._track_builders:
+            track_builder.build()
+
+    def track(self, name: str, track_type: TrackType = TrackType.FX) -> 'TrackBuilder':
+        """Create and attach a track for placing samples at absolute beats."""
+        return self._attach(TrackBuilder(
+            Track(name=name, track_type=track_type), self._song, library=self._library))
+
+    def drums(self, name: str = "Drums") -> 'DrumTrackBuilder':
+        """Create and attach drums using the current pattern length."""
+        return self._attach(DrumTrackBuilder(
+            Track(name=name, track_type=TrackType.DRUMS), self._song,
+            self._current_bar_length, library=self._library))
+
+    def bass(self, name: str = "Bass") -> 'BassTrackBuilder':
+        """Create and attach a bass track; note positions are absolute beats."""
+        return self._attach(BassTrackBuilder(
+            Track(name=name, track_type=TrackType.BASS), self._song,
+            self._current_bar_length, library=self._library))
+
+    def melody(self, name: str = "Melody", *, synth_type: str = 'saw') -> 'MelodyTrackBuilder':
+        """Create and attach a melody. Notes are synthesized by build()."""
+        return self._attach(MelodyTrackBuilder(
+            Track(name=name, track_type=TrackType.LEAD), self._song,
+            self._current_bar_length, synth_type, library=self._library))
+
+    def harmony(self, name: str = "Harmony", *, synth_type: str = 'saw') -> 'HarmonyTrackBuilder':
+        """Create and attach chords. Notes are synthesized by build()."""
+        return self._attach(HarmonyTrackBuilder(
+            Track(name=name, track_type=TrackType.PAD), self._song,
+            self._current_bar_length, synth_type, library=self._library))
+
+    def keygroup(self, name: str, program: 'KeygroupProgram') -> 'KeygroupTrackBuilder':
+        """Create and attach a sampled instrument track."""
+        from .keygroup import KeygroupTrackBuilder
+        return self._attach(KeygroupTrackBuilder(
+            Track(name=name, track_type=TrackType.LEAD), self._song, program,
+            library=self._library))
+
+    def _configure(self: _CB, factory: Callable[[], _TB],
+                   configure: Optional[Callable[[_TB], object]]) -> _CB:
+        # Roll back attachment if configuration or synthesis fails.
+        target = self._track_target
+        track_builder = factory()
+        try:
+            if configure is not None:
+                configure(track_builder)
+            track_builder.build()
+        except Exception:
+            self._track_builders.remove(track_builder)
+            target.tracks[:] = [t for t in target.tracks if t is not track_builder._track]
+            raise
+        return self
+
+    def add_track(self: _CB, name: str, track_type: TrackType = TrackType.DRUMS,
+                  builder: Optional[Callable[['TrackBuilder'], object]] = None) -> _CB:
+        """Configure a generic track and return the song or section builder."""
+        return self._configure(lambda: self.track(name, track_type), builder)
+
+    def add_drums(self: _CB, builder: Callable[['DrumTrackBuilder'], object],
+                  name: str = "Drums") -> _CB:
+        """Configure drums with a callback; use drums() for direct access."""
+        return self._configure(lambda: self.drums(name), builder)
+
+    def add_bass(self: _CB, builder: Callable[['BassTrackBuilder'], object],
+                 name: str = "Bass") -> _CB:
+        """Configure bass with a callback; use bass() for direct access."""
+        return self._configure(lambda: self.bass(name), builder)
+
+    def add_melody(self: _CB, builder: Callable[['MelodyTrackBuilder'], object],
+                   name: str = "Melody", synth_type: str = 'saw') -> _CB:
+        """Configure a melody with a callback and synthesize its notes."""
+        return self._configure(lambda: self.melody(name, synth_type=synth_type), builder)
+
+    def add_harmony(self: _CB, builder: Callable[['HarmonyTrackBuilder'], object],
+                    name: str = "Harmony", synth_type: str = 'saw') -> _CB:
+        """Configure chords with a callback and synthesize their notes."""
+        return self._configure(lambda: self.harmony(name, synth_type=synth_type), builder)
+
+    def add_keygroup(self: _CB, name: str, program: 'KeygroupProgram',
+                     builder_fn: Callable[['KeygroupTrackBuilder'], object]) -> _CB:
+        """Configure a sampled instrument with a callback."""
+        return self._configure(lambda: self.keygroup(name, program), builder_fn)
+
+
+class SongBuilder(_TrackContainerBuilder):
     """
     Fluent builder for creating songs.
 
@@ -141,29 +253,38 @@ class SongBuilder:
             .build())
     """
 
-    def __init__(self, name: str = "Untitled"):
-        self._song = Song(name=name)
-        self._current_bar_length: int = 4  # Default 4 bars
+    def __init__(self, name: str = "Untitled", *, bpm: float = 120.0,
+                 bars: int = 4, sample_rate: int = 44100):
+        _positive(bpm, "bpm")
+        _positive_int(bars, "bars")
+        _positive_int(sample_rate, "sample_rate")
+        self._song = Song(name=name, bpm=bpm, sample_rate=sample_rate)
+        self._init_tracks(self._song, bars)
         self._library = None  # Optional[SampleLibrary]
     
     def tempo(self, bpm: float) -> 'SongBuilder':
         """Set the song tempo in BPM."""
+        _positive(bpm, "bpm")
         self._song.bpm = bpm
         return self
     
     def time_signature(self, beats_per_bar: int = 4, 
                        beat_value: int = 4) -> 'SongBuilder':
         """Set the time signature."""
+        _positive_int(beats_per_bar, "beats_per_bar")
+        _positive_int(beat_value, "beat_value")
         self._song.time_signature = TimeSignature(beats_per_bar, beat_value)
         return self
     
     def sample_rate(self, rate: int) -> 'SongBuilder':
         """Set the sample rate."""
+        _positive_int(rate, "sample_rate")
         self._song.sample_rate = rate
         return self
     
     def bars(self, num_bars: int) -> 'SongBuilder':
         """Set the default pattern length in bars."""
+        _positive_int(num_bars, "bars")
         self._current_bar_length = num_bars
         return self
 
@@ -186,67 +307,6 @@ class SongBuilder:
         self._library = library
         return self
 
-    def add_track(self, name: str, track_type: TrackType = TrackType.DRUMS,
-                  builder: Optional[Callable[['TrackBuilder'], 'TrackBuilder']] = None
-                  ) -> 'SongBuilder':
-        """Add a generic track with optional builder configuration."""
-        track = Track(name=name, track_type=track_type)
-        if builder:
-            track_builder = TrackBuilder(track, self._song, library=self._library)
-            builder(track_builder)
-        self._song.add_track(track)
-        return self
-
-    def add_drums(self, builder: Callable[['DrumTrackBuilder'], 'DrumTrackBuilder']
-                  ) -> 'SongBuilder':
-        """Add a drum track using the drum builder."""
-        track = Track(name="Drums", track_type=TrackType.DRUMS)
-        drum_builder = DrumTrackBuilder(
-            track, self._song, self._current_bar_length, library=self._library)
-        builder(drum_builder)
-        self._song.add_track(track)
-        return self
-
-    def add_bass(self, builder: Callable[['BassTrackBuilder'], 'BassTrackBuilder']
-                 ) -> 'SongBuilder':
-        """Add a bass track using the bass builder."""
-        track = Track(name="Bass", track_type=TrackType.BASS)
-        bass_builder = BassTrackBuilder(
-            track, self._song, self._current_bar_length, library=self._library)
-        builder(bass_builder)
-        self._song.add_track(track)
-        return self
-
-    def add_keygroup(
-        self,
-        name: str,
-        program: 'KeygroupProgram',
-        builder_fn: Callable[['KeygroupTrackBuilder'], 'KeygroupTrackBuilder'],
-    ) -> 'SongBuilder':
-        """Add a keygroup-based track to the song.
-
-        Parameters
-        ----------
-        name : str
-            Track name (e.g. "Sampled Piano", "Pad Layer").
-        program : KeygroupProgram
-            The keygroup instrument to use as the sound source.
-        builder_fn : callable
-            A lambda/function that receives a KeygroupTrackBuilder
-            and configures it by placing notes, phrases, effects, etc.
-
-        Returns
-        -------
-        self
-        """
-        from beatmaker.keygroup import KeygroupTrackBuilder
-
-        track = Track(name=name, track_type=TrackType.LEAD)
-        builder = KeygroupTrackBuilder(track, self._song, program)
-        builder_fn(builder)
-        self._song.add_track(track)
-        return self
-    
     def add_vocal(self, path: Union[str, Path], 
                   start_bar: float = 0,
                   volume: float = 1.0) -> 'SongBuilder':
@@ -309,52 +369,6 @@ class SongBuilder:
         """Add a compressor to the master bus."""
         return self.master_effect(Compressor(threshold=threshold, ratio=ratio))
     
-    def add_melody(self, builder: Callable[['MelodyTrackBuilder'], 'MelodyTrackBuilder'],
-                   name: str = "Melody",
-                   synth_type: str = 'saw') -> 'SongBuilder':
-        """
-        Add a melodic track using Phrase-based composition.
-
-        Example:
-            .add_melody(lambda m: m
-                .synth('saw')
-                .phrase(motif, start_beat=0)
-                .phrase(motif.transpose(5), start_beat=4)
-                .volume(0.7)
-            )
-        """
-        track = Track(name=name, track_type=TrackType.LEAD)
-        melody_builder = MelodyTrackBuilder(
-            track, self._song, self._current_bar_length, synth_type,
-            library=self._library)
-        builder(melody_builder)
-        melody_builder.render_melody()
-        self._song.add_track(track)
-        return self
-
-    def add_harmony(self, builder: Callable[['HarmonyTrackBuilder'], 'HarmonyTrackBuilder'],
-                    name: str = "Harmony",
-                    synth_type: str = 'saw') -> 'SongBuilder':
-        """
-        Add a harmony/chord track using chord progressions.
-
-        Example:
-            .add_harmony(lambda h: h
-                .key("C", "major")
-                .progression("I - V - vi - IV", beats_per_chord=4)
-                .voice_lead()
-                .volume(0.5)
-            , synth_type='warm_pad')
-        """
-        track = Track(name=name, track_type=TrackType.PAD)
-        harmony_builder = HarmonyTrackBuilder(
-            track, self._song, self._current_bar_length, synth_type,
-            library=self._library)
-        builder(harmony_builder)
-        harmony_builder.render_harmony()
-        self._song.add_track(track)
-        return self
-
     def section(self, name: str, bars: int) -> 'SectionBuilder':
         """
         Create a SectionBuilder for building reusable song sections.
@@ -433,7 +447,7 @@ class SongBuilder:
                 )
                 .build())
         """
-        from .spc import SPC700SongBuilder
+        from beatmaker_spc700 import SPC700SongBuilder
         if track_type is None:
             track_type = TrackType.BACKING
 
@@ -467,17 +481,15 @@ class SongBuilder:
             volume:   Echo wet volume 0-127.
             fir:      8-tap FIR coefficients (default: identity).
         """
-        from .spc import SPC700Echo
+        from beatmaker_spc700 import SPC700Echo
         if fir is None:
             fir = (127, 0, 0, 0, 0, 0, 0, 0)
         return self.master_effect(SPC700Echo(delay, feedback, volume, fir))
 
     def build(self) -> Song:
         """Build and return the completed song."""
+        self._finish_tracks()
         return self._song
-
-
-_TB = TypeVar('_TB', bound='TrackBuilder')
 
 
 class TrackBuilder:
@@ -487,6 +499,10 @@ class TrackBuilder:
         self._track = track
         self._song = song
         self._library = library  # Optional[SampleLibrary]
+
+    def build(self) -> Track:
+        """Return the track, synthesizing any pending notes first."""
+        return self._track
 
     def volume(self: _TB, level: float) -> _TB:
         """Set track volume (0.0 - 1.0)."""
@@ -699,25 +715,25 @@ class DrumTrackBuilder(TrackBuilder):
     
     def _get_or_create_kick(self) -> Sample:
         if self._kick_sample is None:
-            from .synth import DrumSynth
+            from .synthesis import DrumSynth
             self._kick_sample = DrumSynth.kick()
         return self._kick_sample
     
     def _get_or_create_snare(self) -> Sample:
         if self._snare_sample is None:
-            from .synth import DrumSynth
+            from .synthesis import DrumSynth
             self._snare_sample = DrumSynth.snare()
         return self._snare_sample
     
     def _get_or_create_hihat(self) -> Sample:
         if self._hihat_sample is None:
-            from .synth import DrumSynth
+            from .synthesis import DrumSynth
             self._hihat_sample = DrumSynth.hihat()
         return self._hihat_sample
     
     def _get_or_create_clap(self) -> Sample:
         if self._clap_sample is None:
-            from .synth import DrumSynth
+            from .synthesis import DrumSynth
             self._clap_sample = DrumSynth.clap()
         return self._clap_sample
     
@@ -793,7 +809,7 @@ class DrumTrackBuilder(TrackBuilder):
                     
                     # Use open hi-hat if specified
                     if beat in open_beats_set:
-                        from .synth import DrumSynth
+                        from .synthesis import DrumSynth
                         open_sample = DrumSynth.hihat(open_amount=0.8)
                         self.add(open_sample, actual_beat, velocity)
                     else:
@@ -861,7 +877,8 @@ class BassTrackBuilder(TrackBuilder):
             duration: Note duration in beats
             velocity: Note velocity
         """
-        from .synth import BassSynth, note_to_freq
+        from .synthesis import BassSynth
+        from .music import note_to_freq
         
         freq = note_to_freq(note)
         duration_sec = self._song.beat_to_seconds(duration)
@@ -873,7 +890,8 @@ class BassTrackBuilder(TrackBuilder):
     def acid_note(self, note: str, beat: float, duration: float = 0.5,
                   velocity: float = 1.0) -> 'BassTrackBuilder':
         """Add an acid bass note."""
-        from .synth import BassSynth, note_to_freq
+        from .synthesis import BassSynth
+        from .music import note_to_freq
         
         freq = note_to_freq(note)
         duration_sec = self._song.beat_to_seconds(duration)
@@ -907,10 +925,6 @@ class BassTrackBuilder(TrackBuilder):
     def octave_pattern(self, root: str, beats: List[float],
                        duration: float = 0.5) -> 'BassTrackBuilder':
         """Play root note alternating with octave above."""
-        from .synth import note_to_freq
-
-        root_freq = note_to_freq(root)
-
         for i, beat in enumerate(beats):
             if i % 2 == 0:
                 self.note(root, beat, duration)
@@ -953,12 +967,62 @@ class BassTrackBuilder(TrackBuilder):
         return self
 
 
-class MelodyTrackBuilder(TrackBuilder):
+class _DeferredTrackBuilder(TrackBuilder):
+    """Compile musical events once, then rebuild only when their inputs change."""
+
+    def __init__(self, track: Track, song: Song, library=None):
+        super().__init__(track, song, library=library)
+        self._dirty = True
+        self._generated: List[SamplePlacement] = []
+        self._transforms: List[Callable[[Track], object]] = []
+
+    def _render_notes(self) -> None:
+        raise NotImplementedError
+
+    def build(self) -> Track:
+        if not self._dirty:
+            return self._track
+        previous = self._track.placements
+        self._track.placements = []
+        try:
+            self._render_notes()
+            for transform in self._transforms:
+                transform(self._track)
+            generated = self._track.placements
+        except Exception:
+            self._track.placements = previous
+            raise
+        generated_ids = {id(p) for p in self._generated}
+        manual = [p for p in previous if id(p) not in generated_ids]
+        self._track.placements = manual + generated
+        self._generated = generated
+        self._dirty = False
+        return self._track
+
+    def humanize(self: _DTB, timing: float = 0.01, velocity: float = 0.1,
+                 seed: Optional[int] = None) -> _DTB:
+        """Humanize synthesized notes after rendering, including future phrases."""
+        from .expression import Humanizer
+
+        def apply(track):
+            Humanizer(timing_jitter=timing, velocity_variation=velocity,
+                      seed=seed).apply_to_track(track)
+        self._transforms.append(apply)
+        self._dirty = True
+        return self
+
+    def groove(self: _DTB, template) -> _DTB:
+        """Apply a groove to synthesized notes after rendering."""
+        self._transforms.append(lambda track: template.apply_to_track(track, self._song.bpm))
+        self._dirty = True
+        return self
+
+
+class MelodyTrackBuilder(_DeferredTrackBuilder):
     """
     Builder for melodic tracks using Phrase-based composition.
 
-    Synthesizes notes on-the-fly from Phrase events and places them
-    on the track timeline.
+    Collects Phrase events and synthesizes them when build() is called.
     """
 
     def __init__(self, track: Track, song: Song, pattern_bars: int = 4,
@@ -982,11 +1046,13 @@ class MelodyTrackBuilder(TrackBuilder):
         Options: 'saw', 'square', 'sine', 'triangle', 'fm', 'pluck'
         """
         self._synth_type = synth_type
+        self._dirty = True
         return self
 
     def phrase(self, phrase, start_beat: Optional[float] = None) -> 'MelodyTrackBuilder':
         """Add a Phrase at a specific beat (or auto-append)."""
         self._get_melody().add(phrase, start_beat)
+        self._dirty = True
         return self
 
     def play(self, notation: str, start_beat: Optional[float] = None) -> 'MelodyTrackBuilder':
@@ -1000,13 +1066,16 @@ class MelodyTrackBuilder(TrackBuilder):
         return self.phrase(p, start_beat)
 
     def render_melody(self) -> None:
-        """Render all melody events to track placements (called by SongBuilder.build)."""
+        """Synthesize pending notes; repeated calls do not duplicate placements."""
+        self.build()
+
+    def _render_notes(self) -> None:
         if self._melody is None:
             return
 
         events = self._melody.to_events()
         for beat, midi_note, velocity, duration_beats in events:
-            from .synth import midi_to_freq, ADSREnvelope
+            from .music import midi_to_freq
             freq = midi_to_freq(midi_note)
             duration_sec = self._song.beat_to_seconds(duration_beats)
             sample = self._create_synth_sample(freq, duration_sec, velocity)
@@ -1016,8 +1085,8 @@ class MelodyTrackBuilder(TrackBuilder):
     def _create_synth_sample(self, freq: float, duration: float,
                               velocity: float = 1.0) -> Sample:
         """Synthesize a note sample using the configured synth type."""
-        from .synth import (sine_wave, sawtooth_wave, square_wave,
-                           triangle_wave, ADSREnvelope, midi_to_freq)
+        from .synthesis import (sine_wave, sawtooth_wave, square_wave,
+                           triangle_wave, ADSREnvelope)
 
         sr = self._song.sample_rate
         envelope = ADSREnvelope(0.01, 0.1, 0.7, 0.1)
@@ -1030,14 +1099,14 @@ class MelodyTrackBuilder(TrackBuilder):
             audio = triangle_wave(freq, duration, sr)
         elif self._synth_type == 'fm':
             try:
-                from .synths import LeadSynth
+                from .synthesis import LeadSynth
                 sample = LeadSynth.fm_lead(freq, duration, sample_rate=sr)
                 return sample
             except Exception:
                 audio = sawtooth_wave(freq, duration, sr)
         elif self._synth_type == 'pluck':
             try:
-                from .synths import PluckSynth
+                from .synthesis import PluckSynth
                 sample = PluckSynth.karplus_strong(freq, duration, sample_rate=sr)
                 return sample
             except Exception:
@@ -1048,31 +1117,8 @@ class MelodyTrackBuilder(TrackBuilder):
         audio = envelope.apply(audio)
         return Sample(f"note_{freq:.0f}hz", audio, tags=["melody"])
 
-    def humanize(self, timing: float = 0.01, velocity: float = 0.1,
-                 seed: Optional[int] = None) -> 'MelodyTrackBuilder':
-        """Apply humanization to all placements after rendering."""
-        from .expression import Humanizer
-        Humanizer(timing_jitter=timing, velocity_variation=velocity,
-                  seed=seed).apply_to_track(self._track)
-        return self
 
-    def groove(self, template) -> 'MelodyTrackBuilder':
-        """Apply a groove template to all placements."""
-        template.apply_to_track(self._track, self._song.bpm)
-        return self
-
-    def automate_volume(self, curve: AutomationCurve) -> 'MelodyTrackBuilder':
-        """Attach a volume automation curve to this track."""
-        self._track.volume_automation = curve
-        return self
-
-    def automate_pan(self, curve: AutomationCurve) -> 'MelodyTrackBuilder':
-        """Attach a pan automation curve to this track."""
-        self._track.pan_automation = curve
-        return self
-
-
-class HarmonyTrackBuilder(TrackBuilder):
+class HarmonyTrackBuilder(_DeferredTrackBuilder):
     """
     Builder for harmony/chord tracks.
 
@@ -1095,7 +1141,7 @@ class HarmonyTrackBuilder(TrackBuilder):
     def key(self, root: str, scale_type: str = 'major') -> 'HarmonyTrackBuilder':
         """Set the musical key for chord construction."""
         from .harmony import Key
-        from .arpeggiator import Scale
+        from .music import Scale
         scale_map = {
             'major': Scale.MAJOR, 'minor': Scale.MINOR,
             'dorian': Scale.DORIAN, 'mixolydian': Scale.MIXOLYDIAN,
@@ -1104,6 +1150,7 @@ class HarmonyTrackBuilder(TrackBuilder):
         }
         scale = scale_map.get(scale_type, Scale.MAJOR)
         self._key = Key(root=root, scale=scale)
+        self._dirty = True
         return self
 
     def progression(self, numerals: str,
@@ -1115,6 +1162,7 @@ class HarmonyTrackBuilder(TrackBuilder):
             raise ValueError("Must set key before progression")
         self._progression = ChordProgression.from_roman(
             self._key, numerals, beats_per_chord, octave)
+        self._dirty = True
         return self
 
     def voice_lead(self, enable: bool = True,
@@ -1122,6 +1170,7 @@ class HarmonyTrackBuilder(TrackBuilder):
         """Enable voice leading for smoother chord transitions."""
         self._voice_led = enable
         self._num_voices = num_voices
+        self._dirty = True
         return self
 
     def arpeggiate(self, rate: float = 0.25,
@@ -1130,15 +1179,20 @@ class HarmonyTrackBuilder(TrackBuilder):
         self._arpeggiate = True
         self._arp_rate = rate
         self._arp_direction = direction
+        self._dirty = True
         return self
 
     def synth(self, synth_type: str) -> 'HarmonyTrackBuilder':
         """Set the synthesizer type."""
         self._synth_type = synth_type
+        self._dirty = True
         return self
 
     def render_harmony(self) -> None:
-        """Render all chord events to track placements."""
+        """Synthesize pending chords; repeated calls do not duplicate placements."""
+        self.build()
+
+    def _render_notes(self) -> None:
         if self._progression is None:
             return
 
@@ -1151,7 +1205,7 @@ class HarmonyTrackBuilder(TrackBuilder):
                 num_voices=self._num_voices)
 
             for beat, midi_note, velocity, duration_beats in events:
-                from .synth import midi_to_freq, ADSREnvelope
+                from .music import midi_to_freq
                 freq = midi_to_freq(midi_note)
                 duration_sec = self._song.beat_to_seconds(duration_beats)
                 sample = self._create_synth_sample(freq, duration_sec)
@@ -1178,14 +1232,14 @@ class HarmonyTrackBuilder(TrackBuilder):
         events = arp.generate_from_progression(arp_prog, int(beats_per_chord))
 
         for time, midi_note, velocity, duration in events:
-            from .synth import midi_to_freq
+            from .music import midi_to_freq
             freq = midi_to_freq(midi_note)
             sample = self._create_synth_sample(freq, duration)
             self._track.add(sample, time, velocity)
 
     def _create_synth_sample(self, freq: float, duration: float) -> Sample:
         """Synthesize a chord note sample."""
-        from .synth import (sine_wave, sawtooth_wave, square_wave,
+        from .synthesis import (sine_wave, sawtooth_wave, square_wave,
                            triangle_wave, ADSREnvelope)
 
         sr = self._song.sample_rate
@@ -1199,14 +1253,14 @@ class HarmonyTrackBuilder(TrackBuilder):
             audio = triangle_wave(freq, duration, sr)
         elif self._synth_type in ('warm_pad', 'pad'):
             try:
-                from .synths import PadSynth
+                from .synthesis import PadSynth
                 sample = PadSynth.warm_pad(freq, duration, sample_rate=sr)
                 return sample
             except Exception:
                 audio = sawtooth_wave(freq, duration, sr)
         elif self._synth_type == 'string_pad':
             try:
-                from .synths import PadSynth
+                from .synthesis import PadSynth
                 sample = PadSynth.string_pad(freq, duration, sample_rate=sr)
                 return sample
             except Exception:
@@ -1217,27 +1271,8 @@ class HarmonyTrackBuilder(TrackBuilder):
         audio = envelope.apply(audio)
         return Sample(f"chord_{freq:.0f}hz", audio, tags=["harmony"])
 
-    def humanize(self, timing: float = 0.01, velocity: float = 0.1,
-                 seed: Optional[int] = None) -> 'HarmonyTrackBuilder':
-        from .expression import Humanizer
-        Humanizer(timing_jitter=timing, velocity_variation=velocity,
-                  seed=seed).apply_to_track(self._track)
-        return self
 
-    def groove(self, template) -> 'HarmonyTrackBuilder':
-        template.apply_to_track(self._track, self._song.bpm)
-        return self
-
-    def automate_volume(self, curve: AutomationCurve) -> 'HarmonyTrackBuilder':
-        self._track.volume_automation = curve
-        return self
-
-    def automate_pan(self, curve: AutomationCurve) -> 'HarmonyTrackBuilder':
-        self._track.pan_automation = curve
-        return self
-
-
-class SectionBuilder:
+class SectionBuilder(_TrackContainerBuilder):
     """
     Builder for creating reusable song sections.
 
@@ -1254,103 +1289,28 @@ class SectionBuilder:
     def __init__(self, name: str, bars: int, song_context: Song,
                  library=None):
         from .arrangement import Section
+        _positive_int(bars, "bars")
         self._section = Section(name=name, bars=bars)
+        self._init_tracks(self._section, bars)
         self._song = song_context
-        self._bars = bars
         self._library = library
 
-    def add_drums(self, builder: Callable[['DrumTrackBuilder'], 'DrumTrackBuilder']
-                  ) -> 'SectionBuilder':
-        """Add drums to this section."""
-        track = Track(name="Drums", track_type=TrackType.DRUMS)
-        drum_builder = DrumTrackBuilder(
-            track, self._song, self._bars, library=self._library)
-        builder(drum_builder)
-        self._section.add_track(track)
-        return self
-
-    def add_bass(self, builder: Callable[['BassTrackBuilder'], 'BassTrackBuilder']
-                 ) -> 'SectionBuilder':
-        """Add bass to this section."""
-        track = Track(name="Bass", track_type=TrackType.BASS)
-        bass_builder = BassTrackBuilder(
-            track, self._song, self._bars, library=self._library)
-        builder(bass_builder)
-        self._section.add_track(track)
-        return self
-
-    def add_melody(self, builder: Callable[['MelodyTrackBuilder'], 'MelodyTrackBuilder'],
-                   name: str = "Melody",
-                   synth_type: str = 'saw') -> 'SectionBuilder':
-        """Add a melodic track to this section."""
-        track = Track(name=name, track_type=TrackType.LEAD)
-        melody_builder = MelodyTrackBuilder(
-            track, self._song, self._bars, synth_type,
-            library=self._library)
-        builder(melody_builder)
-        melody_builder.render_melody()
-        self._section.add_track(track)
-        return self
-
-    def add_harmony(self, builder: Callable[['HarmonyTrackBuilder'], 'HarmonyTrackBuilder'],
-                    name: str = "Harmony",
-                    synth_type: str = 'saw') -> 'SectionBuilder':
-        """Add a harmony/chord track to this section."""
-        track = Track(name=name, track_type=TrackType.PAD)
-        harmony_builder = HarmonyTrackBuilder(
-            track, self._song, self._bars, synth_type,
-            library=self._library)
-        builder(harmony_builder)
-        harmony_builder.render_harmony()
-        self._section.add_track(track)
-        return self
-
-    def add_keygroup(
-        self,
-        name: str,
-        program: 'KeygroupProgram',
-        builder_fn: Callable[['KeygroupTrackBuilder'], 'KeygroupTrackBuilder'],
-    ) -> 'SectionBuilder':
-        """Add a keygroup-based track to this section.
-
-        Parameters
-        ----------
-        name : str
-            Track name.
-        program : KeygroupProgram
-            The keygroup instrument.
-        builder_fn : callable
-            Builder configuration function.
-
-        Returns
-        -------
-        self
-        """
-        from beatmaker.keygroup import KeygroupTrackBuilder
-
-        track = Track(name=name, track_type=TrackType.LEAD)
-        builder = KeygroupTrackBuilder(track, self._song, program)
-        builder_fn(builder)
-        self._section.add_track(track)
-        return self
-
     def add_track(self, name: str, track_type: TrackType = TrackType.FX,
-                  builder: Optional[Callable[['TrackBuilder'], 'TrackBuilder']] = None
-                  ) -> 'SectionBuilder':
-        """Add a generic track to this section."""
-        track = Track(name=name, track_type=track_type)
-        if builder:
-            track_builder = TrackBuilder(track, self._song, library=self._library)
-            builder(track_builder)
-        self._section.add_track(track)
-        return self
+                  builder: Optional[Callable[['TrackBuilder'], object]] = None) -> 'SectionBuilder':
+        """Configure a generic section track (defaults to FX for compatibility)."""
+        return super().add_track(name, track_type, builder)
 
-    def build(self):
+    def build(self) -> Section:
         """Build and return the Section."""
+        self._finish_tracks()
         return self._section
 
 
 # Convenience function
-def create_song(name: str = "Untitled") -> SongBuilder:
-    """Create a new song builder."""
-    return SongBuilder(name)
+def create_song(name: str = "Untitled", *, bpm: float = 120.0,
+                bars: int = 4, sample_rate: int = 44100) -> SongBuilder:
+    """Create a song builder with optional tempo, drum pattern length, and rate.
+
+    Set timing before adding tracks: placed samples retain their absolute times.
+    """
+    return SongBuilder(name, bpm=bpm, bars=bars, sample_rate=sample_rate)

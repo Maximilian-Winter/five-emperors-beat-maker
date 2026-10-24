@@ -1,30 +1,16 @@
-"""
-靈寶五帝策使編碼之法
-The Numinous Treasure Five Emperors Beat Maker
+"""Compose beats and songs with direct track builders or fluent callbacks.
 
-A Python library for creating beats and songs with a fluent builder pattern.
+Example::
 
-Example:
-    from beatmaker import create_song, DrumSynth
+    from beatmaker import create_song
 
-    song = (create_song("My Beat")
-        .tempo(128)
-        .bars(4)
-        .add_drums(lambda d: d
-            .four_on_floor()
-            .backbeat()
-            .eighth_hats()
-        )
-        .build())
-
+    project = create_song("My Beat", bpm=128, bars=2)
+    project.drums().four_on_floor().backbeat().eighth_hats()
+    project.bass().note("E2", beat=0, duration=4)
+    song = project.master_limiter().build()
     song.export("my_beat.wav")
 
-The Five Emperors govern:
-    🐉 Azure Emperor (East)    - Architecture & Structure
-    🔥 Vermilion Emperor (South) - Performance & Optimization
-    🌍 Yellow Emperor (Center)   - Integration & Balance
-    🐅 White Emperor (West)      - Debugging & Protection
-    🐢 Black Emperor (North)     - Data & Flow
+See docs/song_building.md for track APIs, timing, and build behavior.
 """
 
 __version__ = "0.4.0-dev"

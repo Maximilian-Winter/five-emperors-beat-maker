@@ -1,5 +1,7 @@
 # Effects Module API Reference
 
+[Documentation guide](README.md) | [Song and track builders](song_building.md)
+
 Complete API reference for the `beatmaker.effects` module. All effects inherit from the `AudioEffect` abstract base class and process audio through the `process()` method.
 
 ---

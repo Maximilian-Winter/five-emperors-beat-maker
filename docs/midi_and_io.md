@@ -1,5 +1,7 @@
 # MIDI & I/O
 
+[Documentation guide](README.md) | [Song and track builders](song_building.md)
+
 This document covers audio file I/O, sample library management, MIDI data
 types, MIDI file reading/writing, MIDI-to-beatmaker conversion, and audio
 utility functions.
